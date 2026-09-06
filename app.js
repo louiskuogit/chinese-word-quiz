@@ -1,4 +1,4 @@
-const STORAGE_KEY = "chinese-word-quiz-lessons-v1";
+const STORAGE_KEY = "chinese-word-quiz-lessons-v2";
 
 const state = {
   lessons: [],
@@ -142,6 +142,18 @@ function renderManageList() {
     const controls = document.createElement("div");
     controls.className = "manage-controls";
 
+    const upBtn = document.createElement("button");
+    upBtn.type = "button";
+    upBtn.textContent = "上";
+    upBtn.disabled = index === 0;
+    upBtn.addEventListener("click", () => moveWord(index, -1));
+
+    const downBtn = document.createElement("button");
+    downBtn.type = "button";
+    downBtn.textContent = "下";
+    downBtn.disabled = index === state.lesson.words.length - 1;
+    downBtn.addEventListener("click", () => moveWord(index, 1));
+
     const speakBtn = document.createElement("button");
     speakBtn.type = "button";
     speakBtn.textContent = "唸";
@@ -157,7 +169,7 @@ function renderManageList() {
     deleteBtn.textContent = "刪";
     deleteBtn.addEventListener("click", () => deleteWord(index));
 
-    controls.append(speakBtn, editBtn, deleteBtn);
+    controls.append(upBtn, downBtn, speakBtn, editBtn, deleteBtn);
     item.append(label, controls);
     manageList.append(item);
   });
@@ -221,6 +233,16 @@ function saveWord(event) {
 
 function deleteWord(index) {
   state.lesson.words.splice(index, 1);
+  cancelEdit();
+  refreshAfterWordsChanged();
+}
+
+function moveWord(index, direction) {
+  const targetIndex = index + direction;
+  if (targetIndex < 0 || targetIndex >= state.lesson.words.length) return;
+
+  const [word] = state.lesson.words.splice(index, 1);
+  state.lesson.words.splice(targetIndex, 0, word);
   cancelEdit();
   refreshAfterWordsChanged();
 }
@@ -337,3 +359,5 @@ startBtn.addEventListener("click", startQuiz);
 nextBtn.addEventListener("click", nextQuestion);
 
 selectLesson(state.lessons[0].id);
+
+
