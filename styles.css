@@ -455,3 +455,76 @@ button:disabled {
   }
 }
 
+
+.lesson-manager {
+  background: #eef5f1;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 24px;
+  padding: 12px 14px;
+}
+
+.lesson-manager summary {
+  cursor: pointer;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.lesson-form {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 1fr 1fr;
+  margin-top: 14px;
+}
+
+.lesson-form label {
+  display: grid;
+  gap: 6px;
+}
+
+.lesson-form span {
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
+}
+
+.lesson-form input {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  min-height: 44px;
+  padding: 8px 12px;
+  width: 100%;
+}
+
+.lesson-form .wide,
+.lesson-form-actions {
+  grid-column: 1 / -1;
+}
+
+.lesson-form-actions {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr;
+}
+
+.ocr-text {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: block;
+  font: inherit;
+  margin-top: 12px;
+  min-height: 92px;
+  padding: 10px 12px;
+  resize: vertical;
+  width: 100%;
+}
+
+@media (max-width: 560px) {
+  .lesson-form,
+  .lesson-form-actions {
+    grid-template-columns: 1fr;
+  }
+}

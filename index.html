@@ -40,8 +40,33 @@
         </form>
         <div id="manageList" class="manage-list"></div>
         <div class="manager-actions">
+          <button id="recognizeCurrentBtn" type="button">辨識目前圖片並加入候選詞</button>
           <button id="resetWordsBtn" type="button">還原本課預設圈詞</button>
         </div>
+        <textarea id="ocrText" class="ocr-text" readonly placeholder="辨識結果會顯示在這裡"></textarea>
+      </details>
+
+      <details class="lesson-manager">
+        <summary>新增課別 / 上傳圖片</summary>
+        <form id="lessonForm" class="lesson-form">
+          <label>
+            <span>課別名稱</span>
+            <input id="newLessonTitleInput" type="text" placeholder="第2課 課名" required>
+          </label>
+          <label>
+            <span>年級</span>
+            <input id="newLessonGradeInput" type="text" value="2年級" required>
+          </label>
+          <label class="wide">
+            <span>課本圖片</span>
+            <input id="newLessonImagesInput" type="file" accept="image/*" multiple required>
+          </label>
+          <div class="lesson-form-actions wide">
+            <button id="createLessonBtn" class="primary" type="submit">新增課別</button>
+            <button id="createLessonOcrBtn" type="button">新增並辨識圈詞</button>
+          </div>
+        </form>
+        <p id="lessonStatus" class="progress" aria-live="polite"></p>
       </details>
 
       <div class="book-images" id="bookImages"></div>
@@ -117,12 +142,8 @@
     </section>
   </main>
 
-  <script src="lessons.js?v=20260906-6"></script>
-  <script src="app.js?v=20260906-6"></script>
+  <script src="lessons.js?v=20260906-7"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+  <script src="app.js?v=20260906-7"></script>
 </body>
 </html>
-
-
-
-
-

@@ -1,5 +1,5 @@
-const STORAGE_KEY = "chinese-word-quiz-lessons-v2";
-const LEGACY_STORAGE_KEYS = ["chinese-word-quiz-lessons-v1"];
+const STORAGE_KEY = "chinese-word-quiz-lessons-v3";
+const LEGACY_STORAGE_KEYS = ["chinese-word-quiz-lessons-v2", "chinese-word-quiz-lessons-v1"];
 
 const state = {
   lessons: [],
@@ -13,7 +13,8 @@ const state = {
   dictationRunning: false,
   dictationWords: [],
   dictationIndex: 0,
-  dictationPlayMode: "manual"
+  dictationPlayMode: "manual",
+  recognizing: false
 };
 
 const lessonSelect = document.querySelector("#lessonSelect");
@@ -27,6 +28,14 @@ const editIndexInput = document.querySelector("#editIndexInput");
 const saveWordBtn = document.querySelector("#saveWordBtn");
 const cancelEditBtn = document.querySelector("#cancelEditBtn");
 const resetWordsBtn = document.querySelector("#resetWordsBtn");
+const recognizeCurrentBtn = document.querySelector("#recognizeCurrentBtn");
+const ocrText = document.querySelector("#ocrText");
+const lessonForm = document.querySelector("#lessonForm");
+const newLessonTitleInput = document.querySelector("#newLessonTitleInput");
+const newLessonGradeInput = document.querySelector("#newLessonGradeInput");
+const newLessonImagesInput = document.querySelector("#newLessonImagesInput");
+const createLessonOcrBtn = document.querySelector("#createLessonOcrBtn");
+const lessonStatus = document.querySelector("#lessonStatus");
 const bookImages = document.querySelector("#bookImages");
 const speakAllBtn = document.querySelector("#speakAllBtn");
 const speakCurrentBtn = document.querySelector("#speakCurrentBtn");
@@ -49,12 +58,20 @@ const nextDictationBtn = document.querySelector("#nextDictationBtn");
 const stopDictationBtn = document.querySelector("#stopDictationBtn");
 const dictationStatus = document.querySelector("#dictationStatus");
 
+function cloneLesson(lesson) {
+  return {
+    id: lesson.id,
+    subject: lesson.subject || "國文",
+    grade: lesson.grade || "2年級",
+    title: lesson.title,
+    images: Array.isArray(lesson.images) ? [...lesson.images] : [],
+    words: Array.isArray(lesson.words) ? [...lesson.words] : [],
+    custom: Boolean(lesson.custom)
+  };
+}
+
 function cloneLessons(lessons) {
-  return lessons.map((lesson) => ({
-    ...lesson,
-    images: [...lesson.images],
-    words: [...lesson.words]
-  }));
+  return lessons.map(cloneLesson);
 }
 
 function readSavedLessons(key) {
@@ -69,51 +86,70 @@ function readSavedLessons(key) {
   }
 }
 
-function normalizeWords(words, baseWords) {
+function normalizeWords(words, baseWords = []) {
   const normalized = [];
   words.forEach((word) => {
-    const fixed = word === "新學年" ? "學年" : word;
+    const fixed = String(word || "").trim() === "新學年" ? "學年" : String(word || "").trim();
     if (fixed && !normalized.includes(fixed)) normalized.push(fixed);
   });
 
   baseWords.forEach((word) => {
-    if (!normalized.includes(word)) normalized.push(word);
+    if (word && !normalized.includes(word)) normalized.push(word);
   });
 
   return normalized;
 }
 
-function pickSavedWords(lesson, savedSources) {
+function pickSavedLesson(lesson, savedSources) {
   const candidates = savedSources
     .map((source) => source.find((item) => item.id === lesson.id))
     .filter((item) => item && Array.isArray(item.words));
 
-  if (candidates.length === 0) return lesson.words;
+  if (candidates.length === 0) return lesson;
 
   const best = candidates.reduce((currentBest, candidate) => {
     if (!currentBest) return candidate;
     return candidate.words.length > currentBest.words.length ? candidate : currentBest;
   }, null);
 
-  return normalizeWords(best.words, lesson.words);
+  return {
+    ...lesson,
+    words: normalizeWords(best.words, lesson.words)
+  };
+}
+
+function normalizeSavedCustomLesson(rawLesson) {
+  const lesson = cloneLesson(rawLesson);
+  if (!lesson.id || !lesson.title) return null;
+  lesson.words = normalizeWords(lesson.words);
+  lesson.custom = true;
+  return lesson;
 }
 
 function loadLessons() {
   const baseLessons = cloneLessons(window.LESSONS);
   const savedSources = [STORAGE_KEY, ...LEGACY_STORAGE_KEYS].map(readSavedLessons);
+  const baseIds = new Set(baseLessons.map((lesson) => lesson.id));
+  const mergedLessons = baseLessons.map((lesson) => pickSavedLesson(lesson, savedSources));
 
-  return baseLessons.map((lesson) => ({
-    ...lesson,
-    words: pickSavedWords(lesson, savedSources)
-  }));
+  savedSources.forEach((source) => {
+    source.forEach((rawLesson) => {
+      if (!rawLesson || baseIds.has(rawLesson.id) || mergedLessons.some((lesson) => lesson.id === rawLesson.id)) return;
+      const customLesson = normalizeSavedCustomLesson(rawLesson);
+      if (customLesson) mergedLessons.push(customLesson);
+    });
+  });
+
+  return mergedLessons;
 }
 
 function saveLessons() {
-  const savedLessons = state.lessons.map((lesson) => ({
-    id: lesson.id,
-    words: lesson.words
-  }));
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(savedLessons));
+  const savedLessons = state.lessons.map(cloneLesson);
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(savedLessons));
+  } catch {
+    lessonStatus.textContent = "儲存失敗：圖片可能太多或檔案太大，請減少圖片數量後再試。";
+  }
 }
 
 function speak(text) {
@@ -130,6 +166,7 @@ function speak(text) {
   utterance.pitch = 1;
   window.speechSynthesis.speak(utterance);
 }
+
 function speakForDictation(text, onEnd) {
   if (!("speechSynthesis" in window)) {
     dictationStatus.textContent = "這個瀏覽器不支援語音朗讀。";
@@ -261,6 +298,18 @@ function resetQuizView() {
   state.answered = false;
 }
 
+function renderLessonOptions() {
+  const selectedId = state.lesson ? state.lesson.id : "";
+  lessonSelect.innerHTML = "";
+  state.lessons.forEach((lesson) => {
+    const option = document.createElement("option");
+    option.value = lesson.id;
+    option.textContent = lesson.title;
+    lessonSelect.append(option);
+  });
+  if (selectedId) lessonSelect.value = selectedId;
+}
+
 function renderWordList() {
   wordList.innerHTML = "";
   state.lesson.words.forEach((word, index) => {
@@ -272,6 +321,7 @@ function renderWordList() {
     wordList.append(button);
   });
 }
+
 function renderDictationList() {
   dictationList.innerHTML = "";
   state.lesson.words.forEach((word, index) => {
@@ -333,7 +383,7 @@ function renderImages() {
   bookImages.innerHTML = "";
   state.lesson.images.forEach((src, index) => {
     const img = document.createElement("img");
-    img.src = encodeURI(src);
+    img.src = src.startsWith("data:") ? src : encodeURI(src);
     img.alt = `${state.lesson.title} 課本圖片 ${index + 1}`;
     bookImages.append(img);
   });
@@ -379,7 +429,7 @@ function saveWord(event) {
 
   const editIndex = editIndexInput.value;
   if (editIndex === "") {
-    state.lesson.words.push(word);
+    if (!state.lesson.words.includes(word)) state.lesson.words.push(word);
   } else {
     state.lesson.words[Number(editIndex)] = word;
   }
@@ -410,6 +460,103 @@ function resetWords() {
   state.lesson.words = [...original.words];
   cancelEdit();
   refreshAfterWordsChanged();
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+function extractCandidateWords(text) {
+  const matches = text.match(/[\u3400-\u9fff]{2,6}/g) || [];
+  return normalizeWords(matches.filter((word) => word.length >= 2));
+}
+
+function appendWords(words) {
+  const beforeCount = state.lesson.words.length;
+  words.forEach((word) => {
+    if (!state.lesson.words.includes(word)) state.lesson.words.push(word);
+  });
+  refreshAfterWordsChanged();
+  return state.lesson.words.length - beforeCount;
+}
+
+async function recognizeImagesForLesson(lesson) {
+  if (state.recognizing) return;
+  if (!window.Tesseract) {
+    lessonStatus.textContent = "OCR 載入失敗，請確認網路可連到 CDN 後重新整理。";
+    return;
+  }
+  if (!lesson.images.length) {
+    lessonStatus.textContent = "這一課沒有圖片可辨識。";
+    return;
+  }
+
+  state.recognizing = true;
+  recognizeCurrentBtn.disabled = true;
+  createLessonOcrBtn.disabled = true;
+  lessonStatus.textContent = "正在辨識圖片文字，第一次會比較久。";
+  ocrText.value = "";
+
+  const chunks = [];
+  try {
+    for (let index = 0; index < lesson.images.length; index += 1) {
+      lessonStatus.textContent = `正在辨識第 ${index + 1} / ${lesson.images.length} 張圖片...`;
+      const result = await window.Tesseract.recognize(lesson.images[index], "chi_tra+eng");
+      chunks.push(result.data.text || "");
+    }
+
+    const text = chunks.join("\n").trim();
+    const candidates = extractCandidateWords(text);
+    ocrText.value = text || "沒有辨識到文字。";
+    const added = appendWords(candidates);
+    lessonStatus.textContent = `辨識完成，已加入 ${added} 個候選詞；請在「管理圈詞」刪除、修改、排序。`;
+  } catch {
+    lessonStatus.textContent = "辨識失敗，請換清楚一點的圖片或稍後再試。";
+  } finally {
+    state.recognizing = false;
+    recognizeCurrentBtn.disabled = false;
+    createLessonOcrBtn.disabled = false;
+  }
+}
+
+async function createLesson(shouldRecognize) {
+  const title = newLessonTitleInput.value.trim();
+  const grade = newLessonGradeInput.value.trim() || "2年級";
+  const files = [...newLessonImagesInput.files];
+  if (!title || files.length === 0) {
+    lessonStatus.textContent = "請輸入課別名稱並選擇圖片。";
+    return;
+  }
+
+  lessonStatus.textContent = "正在讀取圖片...";
+  const images = await Promise.all(files.map(fileToDataUrl));
+  const lesson = {
+    id: `custom-${Date.now()}`,
+    subject: "國文",
+    grade,
+    title,
+    images,
+    words: [],
+    custom: true
+  };
+
+  state.lessons.push(lesson);
+  state.lesson = lesson;
+  renderLessonOptions();
+  lessonSelect.value = lesson.id;
+  renderLesson();
+  resetQuizView();
+  saveLessons();
+  lessonForm.reset();
+  newLessonGradeInput.value = grade;
+  lessonStatus.textContent = "已新增課別，可以手動新增圈詞。";
+
+  if (shouldRecognize) await recognizeImagesForLesson(lesson);
 }
 
 function renderQuestion() {
@@ -489,6 +636,9 @@ function nextQuestion() {
 function selectLesson(id) {
   if (state.lesson) stopDictation();
   state.lesson = state.lessons.find((lesson) => lesson.id === id) || state.lessons[0];
+  lessonSelect.value = state.lesson.id;
+  ocrText.value = "";
+  lessonStatus.textContent = "";
   renderLesson();
   cancelEdit();
   resetQuizView();
@@ -496,17 +646,18 @@ function selectLesson(id) {
 
 state.lessons = loadLessons();
 saveLessons();
-state.lessons.forEach((lesson) => {
-  const option = document.createElement("option");
-  option.value = lesson.id;
-  option.textContent = lesson.title;
-  lessonSelect.append(option);
-});
+renderLessonOptions();
 
 lessonSelect.addEventListener("change", () => selectLesson(lessonSelect.value));
 wordForm.addEventListener("submit", saveWord);
 cancelEditBtn.addEventListener("click", cancelEdit);
 resetWordsBtn.addEventListener("click", resetWords);
+recognizeCurrentBtn.addEventListener("click", () => recognizeImagesForLesson(state.lesson));
+lessonForm.addEventListener("submit", (event) => {
+  event.preventDefault();
+  createLesson(false);
+});
+createLessonOcrBtn.addEventListener("click", () => createLesson(true));
 startDictationBtn.addEventListener("click", startDictation);
 nextDictationBtn.addEventListener("click", nextDictationWord);
 stopDictationBtn.addEventListener("click", stopDictation);
@@ -521,18 +672,3 @@ startBtn.addEventListener("click", startQuiz);
 nextBtn.addEventListener("click", nextQuestion);
 
 selectLesson(state.lessons[0].id);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
