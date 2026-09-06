@@ -94,10 +94,7 @@
               <option value="auto">自動</option>
             </select>
           </label>
-          <label>
-            <span>重唸次數</span>
-            <input id="dictationRepeatInput" type="number" min="1" max="5" step="1" value="2">
-          </label>
+
           <label>
             <span>自動間隔秒數</span>
             <input id="dictationDelayInput" type="number" min="1" max="30" step="1" value="3">
@@ -105,6 +102,7 @@
         </div>
         <div class="dictation-actions">
           <button id="startDictationBtn" class="primary" type="button">開始唸</button>
+          <button id="repeatDictationBtn" type="button" disabled>重唸目前</button>
           <button id="nextDictationBtn" type="button" disabled>下一個</button>
           <button id="stopDictationBtn" type="button">停止</button>
         </div>
@@ -146,9 +144,10 @@
     </section>
   </main>
 
-  <script src="lessons.js?v=20260906-8"></script>
+  <script src="lessons.js?v=20260906-9"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-  <script src="app.js?v=20260906-8"></script>
+  <script src="app.js?v=20260906-9"></script>
 </body>
 </html>
+
 

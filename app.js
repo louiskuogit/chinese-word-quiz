@@ -52,9 +52,9 @@ const totalCount = document.querySelector("#totalCount");
 const dictationList = document.querySelector("#dictationList");
 const dictationSequenceSelect = document.querySelector("#dictationSequenceSelect");
 const dictationPlayModeSelect = document.querySelector("#dictationPlayModeSelect");
-const dictationRepeatInput = document.querySelector("#dictationRepeatInput");
 const dictationDelayInput = document.querySelector("#dictationDelayInput");
 const startDictationBtn = document.querySelector("#startDictationBtn");
+const repeatDictationBtn = document.querySelector("#repeatDictationBtn");
 const nextDictationBtn = document.querySelector("#nextDictationBtn");
 const stopDictationBtn = document.querySelector("#stopDictationBtn");
 const dictationStatus = document.querySelector("#dictationStatus");
@@ -184,14 +184,8 @@ function speakForDictation(text, onEnd) {
 
 function setDictationButtons() {
   const isManualRunning = state.dictationRunning && state.dictationPlayMode === "manual";
+  repeatDictationBtn.disabled = !state.dictationRunning || !state.dictationCurrentWord;
   nextDictationBtn.disabled = !isManualRunning || state.dictationIndex >= state.dictationWords.length;
-}
-
-function getDictationRepeatCount() {
-  const repeats = Number(dictationRepeatInput.value);
-  const safeRepeats = Number.isFinite(repeats) ? Math.min(Math.max(repeats, 1), 5) : 2;
-  dictationRepeatInput.value = String(safeRepeats);
-  return safeRepeats;
 }
 
 function getDictationDelayMs() {
@@ -201,23 +195,15 @@ function getDictationDelayMs() {
   return safeSeconds * 1000;
 }
 
-function speakRepeatedForDictation(word, repeatCount, onDone) {
-  let spokenCount = 0;
-
-  function speakAgain() {
-    if (!state.dictationRunning) return;
-    spokenCount += 1;
-    speakForDictation(word, () => {
-      if (!state.dictationRunning) return;
-      if (spokenCount >= repeatCount) {
-        onDone();
-        return;
-      }
-      state.dictationTimer = window.setTimeout(speakAgain, 700);
-    });
-  }
-
-  speakAgain();
+function repeatCurrentDictationWord() {
+  if (!state.dictationRunning || !state.dictationCurrentWord) return;
+  window.speechSynthesis.cancel();
+  if (state.dictationTimer) window.clearTimeout(state.dictationTimer);
+  state.dictationTimer = null;
+  speakForDictation(state.dictationCurrentWord, () => {
+    if (!state.dictationRunning || state.dictationPlayMode !== "auto") return;
+    state.dictationTimer = window.setTimeout(speakCurrentDictationWord, getDictationDelayMs());
+  });
 }
 
 function finishDictation() {
@@ -249,12 +235,12 @@ function speakCurrentDictationWord() {
 
   const displayIndex = state.dictationIndex + 1;
   const word = state.dictationWords[state.dictationIndex];
-  const repeatCount = getDictationRepeatCount();
+  state.dictationCurrentWord = word;
   state.dictationIndex += 1;
-  dictationStatus.textContent = `正在唸第 ${displayIndex} / ${state.dictationWords.length} 個，每個詞重唸 ${repeatCount} 次`;
+  dictationStatus.textContent = `正在唸第 ${displayIndex} / ${state.dictationWords.length} 個`;
   setDictationButtons();
 
-  speakRepeatedForDictation(word, repeatCount, () => {
+  speakForDictation(word, () => {
     if (!state.dictationRunning) return;
     if (state.dictationPlayMode === "auto") {
       state.dictationTimer = window.setTimeout(speakCurrentDictationWord, getDictationDelayMs());
@@ -264,7 +250,7 @@ function speakCurrentDictationWord() {
     if (state.dictationIndex >= state.dictationWords.length) {
       finishDictation();
     } else {
-      dictationStatus.textContent = `已唸完第 ${displayIndex} 個，按「下一個」繼續。`;
+      dictationStatus.textContent = `已唸完第 ${displayIndex} 個。可按「重唸目前」，或按「下一個」繼續。`;
       setDictationButtons();
     }
   });
@@ -687,6 +673,7 @@ lessonForm.addEventListener("submit", (event) => {
 });
 createLessonOcrBtn.addEventListener("click", () => createLesson(true));
 startDictationBtn.addEventListener("click", startDictation);
+repeatDictationBtn.addEventListener("click", repeatCurrentDictationWord);
 nextDictationBtn.addEventListener("click", nextDictationWord);
 stopDictationBtn.addEventListener("click", stopDictation);
 speakAllBtn.addEventListener("click", () => speak(state.lesson.words.join("，")));
@@ -700,4 +687,6 @@ startBtn.addEventListener("click", startQuiz);
 nextBtn.addEventListener("click", nextQuestion);
 
 selectLesson(state.lessons[0].id);
+
+
 

@@ -415,7 +415,7 @@ button:disabled {
 .dictation-settings {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   margin: 14px 0 10px;
 }
 
@@ -444,7 +444,7 @@ button:disabled {
 .dictation-actions {
   display: grid;
   gap: 8px;
-  grid-template-columns: 1fr 1fr auto;
+  grid-template-columns: 1fr 1fr 1fr auto;
   margin-bottom: 10px;
 }
 
@@ -528,4 +528,5 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
 
