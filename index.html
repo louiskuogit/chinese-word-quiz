@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>國小國語圈詞練習</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div>
+      <p class="eyebrow">國小國語</p>
+      <h1>圈詞朗讀與測驗</h1>
+    </div>
+    <label class="lesson-picker">
+      <span>課別</span>
+      <select id="lessonSelect"></select>
+    </label>
+  </header>
+
+  <main class="layout">
+    <section class="study-panel" aria-labelledby="lessonTitle">
+      <div class="title-row">
+        <div>
+          <p id="lessonMeta" class="muted"></p>
+          <h2 id="lessonTitle"></h2>
+        </div>
+        <button id="speakAllBtn" class="primary" type="button">朗讀全部</button>
+      </div>
+
+      <div id="wordList" class="word-list"></div>
+
+      <div class="book-images" id="bookImages"></div>
+    </section>
+
+    <section class="quiz-panel" aria-labelledby="quizTitle">
+      <div class="title-row compact">
+        <div>
+          <p class="muted">聽語音，選出正確圈詞</p>
+          <h2 id="quizTitle">測驗</h2>
+        </div>
+        <button id="speakCurrentBtn" class="icon-button" type="button" aria-label="再聽一次">🔊</button>
+      </div>
+
+      <div class="mode-row" role="group" aria-label="測驗模式">
+        <button id="orderModeBtn" class="mode active" type="button">課本順序</button>
+        <button id="randomModeBtn" class="mode" type="button">跳著考</button>
+      </div>
+
+      <div class="quiz-card">
+        <p id="progressText" class="progress"></p>
+        <div id="questionWord" class="question-word">按「開始測驗」</div>
+        <div id="choices" class="choices"></div>
+        <p id="feedback" class="feedback" aria-live="polite"></p>
+      </div>
+
+      <div class="actions">
+        <button id="startBtn" class="primary" type="button">開始測驗</button>
+        <button id="nextBtn" type="button" disabled>下一題</button>
+      </div>
+
+      <div class="score-box">
+        <span>答對</span>
+        <strong id="correctCount">0</strong>
+        <span>題，共</span>
+        <strong id="totalCount">0</strong>
+        <span>題</span>
+      </div>
+    </section>
+  </main>
+
+  <script src="lessons.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
