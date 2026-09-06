@@ -30,6 +30,20 @@
 
       <div id="wordList" class="word-list"></div>
 
+      <details class="manager">
+        <summary>管理圈詞</summary>
+        <form id="wordForm" class="word-form">
+          <input id="wordInput" type="text" autocomplete="off" placeholder="輸入圈詞">
+          <input id="editIndexInput" type="hidden">
+          <button id="saveWordBtn" class="primary" type="submit">新增</button>
+          <button id="cancelEditBtn" type="button" hidden>取消</button>
+        </form>
+        <div id="manageList" class="manage-list"></div>
+        <div class="manager-actions">
+          <button id="resetWordsBtn" type="button">還原本課預設圈詞</button>
+        </div>
+      </details>
+
       <div class="book-images" id="bookImages"></div>
     </section>
 

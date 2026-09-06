@@ -1,4 +1,7 @@
+const STORAGE_KEY = "chinese-word-quiz-lessons-v1";
+
 const state = {
+  lessons: [],
   lesson: null,
   mode: "order",
   queue: [],
@@ -11,6 +14,13 @@ const lessonSelect = document.querySelector("#lessonSelect");
 const lessonMeta = document.querySelector("#lessonMeta");
 const lessonTitle = document.querySelector("#lessonTitle");
 const wordList = document.querySelector("#wordList");
+const manageList = document.querySelector("#manageList");
+const wordForm = document.querySelector("#wordForm");
+const wordInput = document.querySelector("#wordInput");
+const editIndexInput = document.querySelector("#editIndexInput");
+const saveWordBtn = document.querySelector("#saveWordBtn");
+const cancelEditBtn = document.querySelector("#cancelEditBtn");
+const resetWordsBtn = document.querySelector("#resetWordsBtn");
 const bookImages = document.querySelector("#bookImages");
 const speakAllBtn = document.querySelector("#speakAllBtn");
 const speakCurrentBtn = document.querySelector("#speakCurrentBtn");
@@ -24,6 +34,38 @@ const choices = document.querySelector("#choices");
 const feedback = document.querySelector("#feedback");
 const correctCount = document.querySelector("#correctCount");
 const totalCount = document.querySelector("#totalCount");
+
+function cloneLessons(lessons) {
+  return lessons.map((lesson) => ({
+    ...lesson,
+    images: [...lesson.images],
+    words: [...lesson.words]
+  }));
+}
+
+function loadLessons() {
+  const baseLessons = cloneLessons(window.LESSONS);
+  const stored = window.localStorage.getItem(STORAGE_KEY);
+  if (!stored) return baseLessons;
+
+  try {
+    const savedLessons = JSON.parse(stored);
+    return baseLessons.map((lesson) => {
+      const saved = savedLessons.find((item) => item.id === lesson.id);
+      return saved && Array.isArray(saved.words) ? { ...lesson, words: saved.words } : lesson;
+    });
+  } catch {
+    return baseLessons;
+  }
+}
+
+function saveLessons() {
+  const savedLessons = state.lessons.map((lesson) => ({
+    id: lesson.id,
+    words: lesson.words
+  }));
+  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(savedLessons));
+}
 
 function speak(text) {
   if (!("speechSynthesis" in window)) {
@@ -60,10 +102,23 @@ function setMode(mode) {
   randomModeBtn.classList.toggle("active", mode === "random");
 }
 
-function renderLesson() {
-  lessonMeta.textContent = `${state.lesson.subject} / ${state.lesson.grade}`;
-  lessonTitle.textContent = state.lesson.title;
+function resetQuizView() {
+  startBtn.textContent = "開始測驗";
+  nextBtn.disabled = true;
+  questionWord.textContent = "按「開始測驗」";
+  choices.innerHTML = "";
+  feedback.textContent = "";
+  feedback.className = "feedback";
+  progressText.textContent = "";
+  correctCount.textContent = "0";
+  totalCount.textContent = String(state.lesson.words.length);
+  state.queue = [];
+  state.index = 0;
+  state.correct = 0;
+  state.answered = false;
+}
 
+function renderWordList() {
   wordList.innerHTML = "";
   state.lesson.words.forEach((word, index) => {
     const button = document.createElement("button");
@@ -73,7 +128,42 @@ function renderLesson() {
     button.addEventListener("click", () => speak(word));
     wordList.append(button);
   });
+}
 
+function renderManageList() {
+  manageList.innerHTML = "";
+  state.lesson.words.forEach((word, index) => {
+    const item = document.createElement("div");
+    item.className = "manage-item";
+
+    const label = document.createElement("span");
+    label.textContent = `${index + 1}. ${word}`;
+
+    const controls = document.createElement("div");
+    controls.className = "manage-controls";
+
+    const speakBtn = document.createElement("button");
+    speakBtn.type = "button";
+    speakBtn.textContent = "唸";
+    speakBtn.addEventListener("click", () => speak(word));
+
+    const editBtn = document.createElement("button");
+    editBtn.type = "button";
+    editBtn.textContent = "改";
+    editBtn.addEventListener("click", () => startEditWord(index));
+
+    const deleteBtn = document.createElement("button");
+    deleteBtn.type = "button";
+    deleteBtn.textContent = "刪";
+    deleteBtn.addEventListener("click", () => deleteWord(index));
+
+    controls.append(speakBtn, editBtn, deleteBtn);
+    item.append(label, controls);
+    manageList.append(item);
+  });
+}
+
+function renderImages() {
   bookImages.innerHTML = "";
   state.lesson.images.forEach((src, index) => {
     const img = document.createElement("img");
@@ -81,6 +171,66 @@ function renderLesson() {
     img.alt = `${state.lesson.title} 課本圖片 ${index + 1}`;
     bookImages.append(img);
   });
+}
+
+function renderLesson() {
+  lessonMeta.textContent = `${state.lesson.subject} / ${state.lesson.grade}`;
+  lessonTitle.textContent = state.lesson.title;
+  renderWordList();
+  renderManageList();
+  renderImages();
+}
+
+function refreshAfterWordsChanged() {
+  saveLessons();
+  renderWordList();
+  renderManageList();
+  resetQuizView();
+}
+
+function startEditWord(index) {
+  wordInput.value = state.lesson.words[index];
+  editIndexInput.value = String(index);
+  saveWordBtn.textContent = "儲存";
+  cancelEditBtn.hidden = false;
+  wordInput.focus();
+}
+
+function cancelEdit() {
+  wordForm.reset();
+  editIndexInput.value = "";
+  saveWordBtn.textContent = "新增";
+  cancelEditBtn.hidden = true;
+}
+
+function saveWord(event) {
+  event.preventDefault();
+  const word = wordInput.value.trim();
+  if (!word) return;
+
+  const editIndex = editIndexInput.value;
+  if (editIndex === "") {
+    state.lesson.words.push(word);
+  } else {
+    state.lesson.words[Number(editIndex)] = word;
+  }
+
+  cancelEdit();
+  refreshAfterWordsChanged();
+}
+
+function deleteWord(index) {
+  state.lesson.words.splice(index, 1);
+  cancelEdit();
+  refreshAfterWordsChanged();
+}
+
+function resetWords() {
+  const original = window.LESSONS.find((lesson) => lesson.id === state.lesson.id);
+  if (!original) return;
+  state.lesson.words = [...original.words];
+  cancelEdit();
+  refreshAfterWordsChanged();
 }
 
 function renderQuestion() {
@@ -126,6 +276,12 @@ function answerQuestion(button, selected, answer) {
 }
 
 function startQuiz() {
+  if (state.lesson.words.length === 0) {
+    feedback.textContent = "請先新增圈詞。";
+    feedback.className = "feedback bad";
+    return;
+  }
+
   state.queue = state.mode === "random" ? shuffle(state.lesson.words) : [...state.lesson.words];
   state.index = 0;
   state.correct = 0;
@@ -152,19 +308,14 @@ function nextQuestion() {
 }
 
 function selectLesson(id) {
-  state.lesson = window.LESSONS.find((lesson) => lesson.id === id) || window.LESSONS[0];
+  state.lesson = state.lessons.find((lesson) => lesson.id === id) || state.lessons[0];
   renderLesson();
-  startBtn.textContent = "開始測驗";
-  nextBtn.disabled = true;
-  questionWord.textContent = "按「開始測驗」";
-  choices.innerHTML = "";
-  feedback.textContent = "";
-  progressText.textContent = "";
-  correctCount.textContent = "0";
-  totalCount.textContent = String(state.lesson.words.length);
+  cancelEdit();
+  resetQuizView();
 }
 
-window.LESSONS.forEach((lesson) => {
+state.lessons = loadLessons();
+state.lessons.forEach((lesson) => {
   const option = document.createElement("option");
   option.value = lesson.id;
   option.textContent = lesson.title;
@@ -172,6 +323,9 @@ window.LESSONS.forEach((lesson) => {
 });
 
 lessonSelect.addEventListener("change", () => selectLesson(lessonSelect.value));
+wordForm.addEventListener("submit", saveWord);
+cancelEditBtn.addEventListener("click", cancelEdit);
+resetWordsBtn.addEventListener("click", resetWords);
 speakAllBtn.addEventListener("click", () => speak(state.lesson.words.join("，")));
 speakCurrentBtn.addEventListener("click", () => {
   const currentWord = state.queue[state.index];
@@ -182,4 +336,4 @@ randomModeBtn.addEventListener("click", () => setMode("random"));
 startBtn.addEventListener("click", startQuiz);
 nextBtn.addEventListener("click", nextQuestion);
 
-selectLesson(window.LESSONS[0].id);
+selectLesson(state.lessons[0].id);

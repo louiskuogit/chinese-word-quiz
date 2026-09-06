@@ -294,3 +294,93 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 }
+
+.manager {
+  background: #f3efe6;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  margin-bottom: 24px;
+  padding: 12px 14px;
+}
+
+.manager summary {
+  cursor: pointer;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+
+.word-form {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  margin-top: 14px;
+}
+
+.word-form input[type="text"] {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  min-height: 44px;
+  padding: 8px 12px;
+}
+
+.manage-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.manage-item {
+  align-items: center;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-height: 48px;
+  padding: 8px 10px 8px 14px;
+}
+
+.manage-item > span {
+  font-size: 1.1rem;
+  font-weight: 700;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.manage-controls {
+  display: flex;
+  gap: 6px;
+  flex: 0 0 auto;
+}
+
+.manage-controls button {
+  min-height: 36px;
+  padding: 6px 10px;
+}
+
+.manager-actions {
+  margin-top: 12px;
+}
+
+.manager-actions button {
+  width: 100%;
+}
+
+@media (max-width: 560px) {
+  .word-form {
+    grid-template-columns: 1fr;
+  }
+
+  .manage-item {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .manage-controls {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
