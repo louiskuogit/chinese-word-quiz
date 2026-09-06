@@ -1,4 +1,5 @@
 const STORAGE_KEY = "chinese-word-quiz-lessons-v2";
+const LEGACY_STORAGE_KEYS = ["chinese-word-quiz-lessons-v1"];
 
 const state = {
   lessons: [],
@@ -48,20 +49,55 @@ function cloneLessons(lessons) {
   }));
 }
 
-function loadLessons() {
-  const baseLessons = cloneLessons(window.LESSONS);
-  const stored = window.localStorage.getItem(STORAGE_KEY);
-  if (!stored) return baseLessons;
+function readSavedLessons(key) {
+  const stored = window.localStorage.getItem(key);
+  if (!stored) return [];
 
   try {
     const savedLessons = JSON.parse(stored);
-    return baseLessons.map((lesson) => {
-      const saved = savedLessons.find((item) => item.id === lesson.id);
-      return saved && Array.isArray(saved.words) ? { ...lesson, words: saved.words } : lesson;
-    });
+    return Array.isArray(savedLessons) ? savedLessons : [];
   } catch {
-    return baseLessons;
+    return [];
   }
+}
+
+function normalizeWords(words, baseWords) {
+  const normalized = [];
+  words.forEach((word) => {
+    const fixed = word === "新學年" ? "學年" : word;
+    if (fixed && !normalized.includes(fixed)) normalized.push(fixed);
+  });
+
+  baseWords.forEach((word) => {
+    if (!normalized.includes(word)) normalized.push(word);
+  });
+
+  return normalized;
+}
+
+function pickSavedWords(lesson, savedSources) {
+  const candidates = savedSources
+    .map((source) => source.find((item) => item.id === lesson.id))
+    .filter((item) => item && Array.isArray(item.words));
+
+  if (candidates.length === 0) return lesson.words;
+
+  const best = candidates.reduce((currentBest, candidate) => {
+    if (!currentBest) return candidate;
+    return candidate.words.length > currentBest.words.length ? candidate : currentBest;
+  }, null);
+
+  return normalizeWords(best.words, lesson.words);
+}
+
+function loadLessons() {
+  const baseLessons = cloneLessons(window.LESSONS);
+  const savedSources = [STORAGE_KEY, ...LEGACY_STORAGE_KEYS].map(readSavedLessons);
+
+  return baseLessons.map((lesson) => ({
+    ...lesson,
+    words: pickSavedWords(lesson, savedSources)
+  }));
 }
 
 function saveLessons() {
@@ -407,6 +443,7 @@ function selectLesson(id) {
 }
 
 state.lessons = loadLessons();
+saveLessons();
 state.lessons.forEach((lesson) => {
   const option = document.createElement("option");
   option.value = lesson.id;
@@ -432,6 +469,8 @@ startBtn.addEventListener("click", startQuiz);
 nextBtn.addEventListener("click", nextQuestion);
 
 selectLesson(state.lessons[0].id);
+
+
 
 
 
