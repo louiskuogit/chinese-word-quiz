@@ -412,6 +412,35 @@ button:disabled {
   text-align: left;
 }
 
+.dictation-settings {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr 1fr 1fr;
+  margin: 14px 0 10px;
+}
+
+.dictation-settings label {
+  display: grid;
+  gap: 5px;
+}
+
+.dictation-settings span {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+
+.dictation-settings input,
+.dictation-settings select {
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font: inherit;
+  min-height: 42px;
+  padding: 7px 10px;
+  width: 100%;
+}
+
 .dictation-actions {
   display: grid;
   gap: 8px;
@@ -419,8 +448,10 @@ button:disabled {
   margin-bottom: 10px;
 }
 
-@media (max-width: 460px) {
+@media (max-width: 560px) {
+  .dictation-settings,
   .dictation-actions {
     grid-template-columns: 1fr;
   }
 }
+

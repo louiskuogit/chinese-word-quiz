@@ -8,7 +8,12 @@ const state = {
   queue: [],
   index: 0,
   correct: 0,
-  answered: false
+  answered: false,
+  dictationTimer: null,
+  dictationRunning: false,
+  dictationWords: [],
+  dictationIndex: 0,
+  dictationPlayMode: "manual"
 };
 
 const lessonSelect = document.querySelector("#lessonSelect");
@@ -36,8 +41,11 @@ const feedback = document.querySelector("#feedback");
 const correctCount = document.querySelector("#correctCount");
 const totalCount = document.querySelector("#totalCount");
 const dictationList = document.querySelector("#dictationList");
-const dictationOrderBtn = document.querySelector("#dictationOrderBtn");
-const dictationRandomBtn = document.querySelector("#dictationRandomBtn");
+const dictationSequenceSelect = document.querySelector("#dictationSequenceSelect");
+const dictationPlayModeSelect = document.querySelector("#dictationPlayModeSelect");
+const dictationDelayInput = document.querySelector("#dictationDelayInput");
+const startDictationBtn = document.querySelector("#startDictationBtn");
+const nextDictationBtn = document.querySelector("#nextDictationBtn");
 const stopDictationBtn = document.querySelector("#stopDictationBtn");
 const dictationStatus = document.querySelector("#dictationStatus");
 
@@ -136,45 +144,85 @@ function speakForDictation(text, onEnd) {
   window.speechSynthesis.speak(utterance);
 }
 
+function setDictationButtons() {
+  const isManualRunning = state.dictationRunning && state.dictationPlayMode === "manual";
+  nextDictationBtn.disabled = !isManualRunning || state.dictationIndex >= state.dictationWords.length;
+}
+
+function getDictationDelayMs() {
+  const seconds = Number(dictationDelayInput.value);
+  const safeSeconds = Number.isFinite(seconds) ? Math.min(Math.max(seconds, 1), 30) : 3;
+  dictationDelayInput.value = String(safeSeconds);
+  return safeSeconds * 1000;
+}
+
+function finishDictation() {
+  state.dictationRunning = false;
+  state.dictationTimer = null;
+  dictationStatus.textContent = `聽寫完成，共 ${state.dictationWords.length} 個生詞。`;
+  setDictationButtons();
+}
+
 function stopDictation() {
   state.dictationRunning = false;
   if (state.dictationTimer) window.clearTimeout(state.dictationTimer);
   state.dictationTimer = null;
   window.speechSynthesis.cancel();
   dictationStatus.textContent = "已停止";
+  setDictationButtons();
 }
 
-function startDictation(mode) {
-  if (state.lesson.words.length === 0) {
-    dictationStatus.textContent = "請先新增生詞。";
+function speakCurrentDictationWord() {
+  if (!state.dictationRunning) return;
+  if (state.dictationIndex >= state.dictationWords.length) {
+    finishDictation();
     return;
   }
 
   window.speechSynthesis.cancel();
   if (state.dictationTimer) window.clearTimeout(state.dictationTimer);
+  state.dictationTimer = null;
 
-  const words = mode === "random" ? shuffle(state.lesson.words) : [...state.lesson.words];
-  state.dictationRunning = true;
-  let currentIndex = 0;
+  const displayIndex = state.dictationIndex + 1;
+  const word = state.dictationWords[state.dictationIndex];
+  state.dictationIndex += 1;
+  dictationStatus.textContent = `正在唸第 ${displayIndex} / ${state.dictationWords.length} 個`;
+  setDictationButtons();
 
-  function speakNext() {
+  speakForDictation(word, () => {
     if (!state.dictationRunning) return;
-    if (currentIndex >= words.length) {
-      state.dictationRunning = false;
-      state.dictationTimer = null;
-      dictationStatus.textContent = `聽寫完成，共 ${words.length} 個生詞。`;
+    if (state.dictationPlayMode === "auto") {
+      state.dictationTimer = window.setTimeout(speakCurrentDictationWord, getDictationDelayMs());
       return;
     }
 
-    const word = words[currentIndex];
-    dictationStatus.textContent = `正在唸第 ${currentIndex + 1} / ${words.length} 個`;
-    currentIndex += 1;
-    speakForDictation(word, () => {
-      state.dictationTimer = window.setTimeout(speakNext, 2200);
-    });
+    if (state.dictationIndex >= state.dictationWords.length) {
+      finishDictation();
+    } else {
+      dictationStatus.textContent = `已唸完第 ${displayIndex} 個，按「下一個」繼續。`;
+      setDictationButtons();
+    }
+  });
+}
+
+function startDictation() {
+  if (state.lesson.words.length === 0) {
+    dictationStatus.textContent = "請先新增生詞。";
+    return;
   }
 
-  speakNext();
+  const sequence = dictationSequenceSelect.value;
+  state.dictationPlayMode = dictationPlayModeSelect.value;
+  state.dictationWords = sequence === "random" ? shuffle(state.lesson.words) : [...state.lesson.words];
+  state.dictationIndex = 0;
+  state.dictationRunning = true;
+  setDictationButtons();
+  speakCurrentDictationWord();
+}
+
+function nextDictationWord() {
+  if (!state.dictationRunning || state.dictationPlayMode !== "manual") return;
+  speakCurrentDictationWord();
 }
 
 function shuffle(items) {
@@ -295,13 +343,16 @@ function renderLesson() {
   lessonMeta.textContent = `${state.lesson.subject} / ${state.lesson.grade}`;
   lessonTitle.textContent = state.lesson.title;
   renderWordList();
+  renderDictationList();
   renderManageList();
   renderImages();
 }
 
 function refreshAfterWordsChanged() {
+  stopDictation();
   saveLessons();
   renderWordList();
+  renderDictationList();
   renderManageList();
   resetQuizView();
 }
@@ -436,6 +487,7 @@ function nextQuestion() {
 }
 
 function selectLesson(id) {
+  if (state.lesson) stopDictation();
   state.lesson = state.lessons.find((lesson) => lesson.id === id) || state.lessons[0];
   renderLesson();
   cancelEdit();
@@ -455,8 +507,8 @@ lessonSelect.addEventListener("change", () => selectLesson(lessonSelect.value));
 wordForm.addEventListener("submit", saveWord);
 cancelEditBtn.addEventListener("click", cancelEdit);
 resetWordsBtn.addEventListener("click", resetWords);
-dictationOrderBtn.addEventListener("click", () => startDictation("order"));
-dictationRandomBtn.addEventListener("click", () => startDictation("random"));
+startDictationBtn.addEventListener("click", startDictation);
+nextDictationBtn.addEventListener("click", nextDictationWord);
 stopDictationBtn.addEventListener("click", stopDictation);
 speakAllBtn.addEventListener("click", () => speak(state.lesson.words.join("，")));
 speakCurrentBtn.addEventListener("click", () => {
@@ -469,6 +521,12 @@ startBtn.addEventListener("click", startQuiz);
 nextBtn.addEventListener("click", nextQuestion);
 
 selectLesson(state.lessons[0].id);
+
+
+
+
+
+
 
 
 

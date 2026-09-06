@@ -54,9 +54,29 @@
           <h2 id="dictationTitle">聽寫練習</h2>
         </div>
         <div id="dictationList" class="dictation-list"></div>
+        <div class="dictation-settings">
+          <label>
+            <span>順序</span>
+            <select id="dictationSequenceSelect">
+              <option value="order">照順序</option>
+              <option value="random">亂序</option>
+            </select>
+          </label>
+          <label>
+            <span>方式</span>
+            <select id="dictationPlayModeSelect">
+              <option value="manual">手動</option>
+              <option value="auto">自動</option>
+            </select>
+          </label>
+          <label>
+            <span>自動間隔秒數</span>
+            <input id="dictationDelayInput" type="number" min="1" max="30" step="1" value="3">
+          </label>
+        </div>
         <div class="dictation-actions">
-          <button id="dictationOrderBtn" class="primary" type="button">照順序唸</button>
-          <button id="dictationRandomBtn" type="button">亂序唸</button>
+          <button id="startDictationBtn" class="primary" type="button">開始唸</button>
+          <button id="nextDictationBtn" type="button" disabled>下一個</button>
           <button id="stopDictationBtn" type="button">停止</button>
         </div>
         <p id="dictationStatus" class="progress" aria-live="polite"></p>
@@ -97,10 +117,11 @@
     </section>
   </main>
 
-  <script src="lessons.js?v=20260906-5"></script>
-  <script src="app.js?v=20260906-5"></script>
+  <script src="lessons.js?v=20260906-6"></script>
+  <script src="app.js?v=20260906-6"></script>
 </body>
 </html>
+
 
 
 
