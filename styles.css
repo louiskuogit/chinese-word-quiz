@@ -385,3 +385,42 @@ button:disabled {
 }
 
 
+
+.dictation-box {
+  border-bottom: 1px solid var(--line);
+  margin-bottom: 22px;
+  padding-bottom: 22px;
+}
+
+.dictation-box h2 {
+  margin-top: 2px;
+}
+
+.dictation-list {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  margin: 14px 0;
+}
+
+.dictation-word {
+  background: white;
+  font-size: 1.05rem;
+  min-height: 44px;
+  overflow-wrap: anywhere;
+  padding: 7px 10px;
+  text-align: left;
+}
+
+.dictation-actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: 1fr 1fr auto;
+  margin-bottom: 10px;
+}
+
+@media (max-width: 460px) {
+  .dictation-actions {
+    grid-template-columns: 1fr;
+  }
+}
