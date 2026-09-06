@@ -52,6 +52,7 @@ const totalCount = document.querySelector("#totalCount");
 const dictationList = document.querySelector("#dictationList");
 const dictationSequenceSelect = document.querySelector("#dictationSequenceSelect");
 const dictationPlayModeSelect = document.querySelector("#dictationPlayModeSelect");
+const dictationRepeatInput = document.querySelector("#dictationRepeatInput");
 const dictationDelayInput = document.querySelector("#dictationDelayInput");
 const startDictationBtn = document.querySelector("#startDictationBtn");
 const nextDictationBtn = document.querySelector("#nextDictationBtn");
@@ -186,11 +187,37 @@ function setDictationButtons() {
   nextDictationBtn.disabled = !isManualRunning || state.dictationIndex >= state.dictationWords.length;
 }
 
+function getDictationRepeatCount() {
+  const repeats = Number(dictationRepeatInput.value);
+  const safeRepeats = Number.isFinite(repeats) ? Math.min(Math.max(repeats, 1), 5) : 2;
+  dictationRepeatInput.value = String(safeRepeats);
+  return safeRepeats;
+}
+
 function getDictationDelayMs() {
   const seconds = Number(dictationDelayInput.value);
   const safeSeconds = Number.isFinite(seconds) ? Math.min(Math.max(seconds, 1), 30) : 3;
   dictationDelayInput.value = String(safeSeconds);
   return safeSeconds * 1000;
+}
+
+function speakRepeatedForDictation(word, repeatCount, onDone) {
+  let spokenCount = 0;
+
+  function speakAgain() {
+    if (!state.dictationRunning) return;
+    spokenCount += 1;
+    speakForDictation(word, () => {
+      if (!state.dictationRunning) return;
+      if (spokenCount >= repeatCount) {
+        onDone();
+        return;
+      }
+      state.dictationTimer = window.setTimeout(speakAgain, 700);
+    });
+  }
+
+  speakAgain();
 }
 
 function finishDictation() {
@@ -222,11 +249,12 @@ function speakCurrentDictationWord() {
 
   const displayIndex = state.dictationIndex + 1;
   const word = state.dictationWords[state.dictationIndex];
+  const repeatCount = getDictationRepeatCount();
   state.dictationIndex += 1;
-  dictationStatus.textContent = `正在唸第 ${displayIndex} / ${state.dictationWords.length} 個`;
+  dictationStatus.textContent = `正在唸第 ${displayIndex} / ${state.dictationWords.length} 個，每個詞重唸 ${repeatCount} 次`;
   setDictationButtons();
 
-  speakForDictation(word, () => {
+  speakRepeatedForDictation(word, repeatCount, () => {
     if (!state.dictationRunning) return;
     if (state.dictationPlayMode === "auto") {
       state.dictationTimer = window.setTimeout(speakCurrentDictationWord, getDictationDelayMs());
@@ -672,3 +700,4 @@ startBtn.addEventListener("click", startQuiz);
 nextBtn.addEventListener("click", nextQuestion);
 
 selectLesson(state.lessons[0].id);
+
