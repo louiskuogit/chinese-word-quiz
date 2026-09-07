@@ -47,7 +47,26 @@
       </details>
 
       <details class="lesson-manager">
-        <summary>新增課別 / 上傳圖片</summary>
+        <summary>課別資料 / 上傳圖片</summary>
+        <form id="currentLessonForm" class="lesson-form">
+          <label>
+            <span>目前課別名稱</span>
+            <input id="lessonTitleInput" type="text" required>
+          </label>
+          <label>
+            <span>目前年級</span>
+            <input id="lessonGradeInput" type="text" required>
+          </label>
+          <label class="wide">
+            <span>替換目前課本圖片</span>
+            <input id="lessonImagesInput" type="file" accept="image/*" multiple>
+          </label>
+          <div class="lesson-form-actions wide">
+            <button class="primary" type="submit">儲存目前課別</button>
+            <button id="deleteLessonBtn" type="button">刪除目前課別</button>
+          </div>
+        </form>
+        <hr class="soft-divider">
         <form id="lessonForm" class="lesson-form">
           <label>
             <span>課別名稱</span>
@@ -144,9 +163,9 @@
     </section>
   </main>
 
-  <script src="lessons.js?v=20260906-9"></script>
+  <script src="lessons.js?v=20260908-1"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-  <script src="app.js?v=20260906-9"></script>
+  <script src="app.js?v=20260908-1"></script>
 </body>
 </html>
 

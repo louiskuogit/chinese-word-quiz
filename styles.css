@@ -157,6 +157,21 @@ button:disabled {
   font-size: 1rem;
 }
 
+.word-button.is-played,
+.dictation-word.is-played {
+  background: #e4f3ea;
+  border-color: #79b58f;
+  color: #244f34;
+}
+
+.word-button.is-reading,
+.dictation-word.is-reading {
+  background: #ffe28a;
+  border-color: #d09a00;
+  box-shadow: 0 0 0 3px rgba(208, 154, 0, 0.18);
+  color: #342600;
+}
+
 .book-images {
   display: grid;
   gap: 14px;
@@ -470,6 +485,12 @@ button:disabled {
   font-weight: 800;
 }
 
+
+.soft-divider {
+  border: 0;
+  border-top: 1px solid var(--line);
+  margin: 16px 0 2px;
+}
 .lesson-form {
   display: grid;
   gap: 12px;

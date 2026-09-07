@@ -1,5 +1,8 @@
 const STORAGE_KEY = "chinese-word-quiz-lessons-v3";
 const LEGACY_STORAGE_KEYS = ["chinese-word-quiz-lessons-v2", "chinese-word-quiz-lessons-v1"];
+const DB_NAME = "chinese-word-quiz-db";
+const DB_VERSION = 1;
+const LESSON_STORE = "lessons";
 
 const state = {
   lessons: [],
@@ -14,6 +17,9 @@ const state = {
   dictationWords: [],
   dictationIndex: 0,
   dictationPlayMode: "manual",
+  dictationCurrentItem: null,
+  dictationActiveIndex: -1,
+  dictationPlayedIndexes: new Set(),
   recognizing: false
 };
 
@@ -30,6 +36,11 @@ const cancelEditBtn = document.querySelector("#cancelEditBtn");
 const resetWordsBtn = document.querySelector("#resetWordsBtn");
 const recognizeCurrentBtn = document.querySelector("#recognizeCurrentBtn");
 const ocrText = document.querySelector("#ocrText");
+const currentLessonForm = document.querySelector("#currentLessonForm");
+const lessonTitleInput = document.querySelector("#lessonTitleInput");
+const lessonGradeInput = document.querySelector("#lessonGradeInput");
+const lessonImagesInput = document.querySelector("#lessonImagesInput");
+const deleteLessonBtn = document.querySelector("#deleteLessonBtn");
 const lessonForm = document.querySelector("#lessonForm");
 const newLessonTitleInput = document.querySelector("#newLessonTitleInput");
 const newLessonGradeInput = document.querySelector("#newLessonGradeInput");
@@ -87,6 +98,55 @@ function readSavedLessons(key) {
   }
 }
 
+function openLessonDatabase() {
+  if (!("indexedDB" in window)) return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const request = window.indexedDB.open(DB_NAME, DB_VERSION);
+    request.onupgradeneeded = () => {
+      const db = request.result;
+      if (!db.objectStoreNames.contains(LESSON_STORE)) {
+        db.createObjectStore(LESSON_STORE, { keyPath: "id" });
+      }
+    };
+    request.onsuccess = () => resolve(request.result);
+    request.onerror = () => resolve(null);
+  });
+}
+
+async function readDatabaseLessons() {
+  const db = await openLessonDatabase();
+  if (!db) return [];
+
+  return new Promise((resolve) => {
+    const transaction = db.transaction(LESSON_STORE, "readonly");
+    const request = transaction.objectStore(LESSON_STORE).getAll();
+    request.onsuccess = () => resolve(Array.isArray(request.result) ? request.result : []);
+    request.onerror = () => resolve([]);
+  });
+}
+
+async function writeDatabaseLessons(lessons) {
+  const savedLessons = lessons.map(cloneLesson);
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(savedLessons));
+  } catch {
+    lessonStatus.textContent = "資料已暫存在這次畫面，但瀏覽器備份空間不足。";
+  }
+
+  const db = await openLessonDatabase();
+  if (!db) return;
+
+  await new Promise((resolve) => {
+    const transaction = db.transaction(LESSON_STORE, "readwrite");
+    const store = transaction.objectStore(LESSON_STORE);
+    store.clear();
+    savedLessons.forEach((lesson) => store.put(lesson));
+    transaction.oncomplete = resolve;
+    transaction.onerror = resolve;
+  });
+}
+
 function normalizeWords(words, baseWords = []) {
   const normalized = [];
   words.forEach((word) => {
@@ -115,7 +175,12 @@ function pickSavedLesson(lesson, savedSources) {
 
   return {
     ...lesson,
-    words: normalizeWords(best.words, lesson.words)
+    title: best.title || lesson.title,
+    grade: best.grade || lesson.grade,
+    subject: best.subject || lesson.subject,
+    images: Array.isArray(best.images) && best.images.length ? [...best.images] : lesson.images,
+    words: normalizeWords(best.words, lesson.words),
+    custom: Boolean(best.custom || lesson.custom)
   };
 }
 
@@ -127,9 +192,8 @@ function normalizeSavedCustomLesson(rawLesson) {
   return lesson;
 }
 
-function loadLessons() {
+function mergeLessonSources(savedSources) {
   const baseLessons = cloneLessons(window.LESSONS);
-  const savedSources = [STORAGE_KEY, ...LEGACY_STORAGE_KEYS].map(readSavedLessons);
   const baseIds = new Set(baseLessons.map((lesson) => lesson.id));
   const mergedLessons = baseLessons.map((lesson) => pickSavedLesson(lesson, savedSources));
 
@@ -144,15 +208,15 @@ function loadLessons() {
   return mergedLessons;
 }
 
-function saveLessons() {
-  const savedLessons = state.lessons.map(cloneLesson);
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(savedLessons));
-  } catch {
-    lessonStatus.textContent = "儲存失敗：圖片可能太多或檔案太大，請減少圖片數量後再試。";
-  }
+async function loadLessons() {
+  const dbLessons = await readDatabaseLessons();
+  const savedSources = [dbLessons, ...[STORAGE_KEY, ...LEGACY_STORAGE_KEYS].map(readSavedLessons)].filter((source) => source.length);
+  return mergeLessonSources(savedSources);
 }
 
+function saveLessons() {
+  writeDatabaseLessons(state.lessons);
+}
 function speak(text) {
   if (!("speechSynthesis" in window)) {
     feedback.textContent = "這個瀏覽器不支援語音朗讀。";
@@ -183,9 +247,9 @@ function speakForDictation(text, onEnd) {
 }
 
 function setDictationButtons() {
-  const isManualRunning = state.dictationRunning && state.dictationPlayMode === "manual";
-  repeatDictationBtn.disabled = !state.dictationRunning || !state.dictationCurrentWord;
-  nextDictationBtn.disabled = !isManualRunning || state.dictationIndex >= state.dictationWords.length;
+  const canAdvance = state.dictationRunning && state.dictationCurrentItem && state.dictationIndex < state.dictationWords.length;
+  repeatDictationBtn.disabled = !state.dictationRunning || !state.dictationCurrentItem;
+  nextDictationBtn.disabled = !canAdvance;
 }
 
 function getDictationDelayMs() {
@@ -195,14 +259,52 @@ function getDictationDelayMs() {
   return safeSeconds * 1000;
 }
 
+function applyDictationHighlight(element, index) {
+  element.classList.toggle("is-reading", state.dictationActiveIndex === index);
+  element.classList.toggle("is-played", state.dictationPlayedIndexes.has(index) && state.dictationActiveIndex !== index);
+}
+
+function updateDictationHighlights() {
+  document.querySelectorAll("[data-word-index]").forEach((element) => {
+    applyDictationHighlight(element, Number(element.dataset.wordIndex));
+  });
+}
+
+function resetDictationHighlights() {
+  state.dictationCurrentItem = null;
+  state.dictationCurrentWord = "";
+  state.dictationActiveIndex = -1;
+  state.dictationPlayedIndexes.clear();
+  updateDictationHighlights();
+}
+
+function markDictationSpoken(item) {
+  state.dictationPlayedIndexes.add(item.index);
+  state.dictationActiveIndex = -1;
+  updateDictationHighlights();
+}
+
 function repeatCurrentDictationWord() {
-  if (!state.dictationRunning || !state.dictationCurrentWord) return;
+  if (!state.dictationRunning || !state.dictationCurrentItem) return;
   window.speechSynthesis.cancel();
   if (state.dictationTimer) window.clearTimeout(state.dictationTimer);
   state.dictationTimer = null;
-  speakForDictation(state.dictationCurrentWord, () => {
-    if (!state.dictationRunning || state.dictationPlayMode !== "auto") return;
-    state.dictationTimer = window.setTimeout(speakCurrentDictationWord, getDictationDelayMs());
+  state.dictationPlayMode = "manual";
+  dictationPlayModeSelect.value = "manual";
+  state.dictationActiveIndex = state.dictationCurrentItem.index;
+  updateDictationHighlights();
+  dictationStatus.textContent = `正在重唸：${state.dictationCurrentItem.word}`;
+  setDictationButtons();
+
+  speakForDictation(state.dictationCurrentItem.word, () => {
+    if (!state.dictationRunning || !state.dictationCurrentItem) return;
+    markDictationSpoken(state.dictationCurrentItem);
+    if (state.dictationIndex >= state.dictationWords.length) {
+      finishDictation();
+      return;
+    }
+    dictationStatus.textContent = "已重唸目前圈詞。按「下一個」才會繼續。";
+    setDictationButtons();
   });
 }
 
@@ -210,6 +312,7 @@ function finishDictation() {
   state.dictationRunning = false;
   state.dictationTimer = null;
   dictationStatus.textContent = `聽寫完成，共 ${state.dictationWords.length} 個生詞。`;
+  resetDictationHighlights();
   setDictationButtons();
 }
 
@@ -219,6 +322,7 @@ function stopDictation() {
   state.dictationTimer = null;
   window.speechSynthesis.cancel();
   dictationStatus.textContent = "已停止";
+  resetDictationHighlights();
   setDictationButtons();
 }
 
@@ -234,14 +338,18 @@ function speakCurrentDictationWord() {
   state.dictationTimer = null;
 
   const displayIndex = state.dictationIndex + 1;
-  const word = state.dictationWords[state.dictationIndex];
-  state.dictationCurrentWord = word;
+  const item = state.dictationWords[state.dictationIndex];
+  state.dictationCurrentItem = item;
+  state.dictationCurrentWord = item.word;
+  state.dictationActiveIndex = item.index;
   state.dictationIndex += 1;
-  dictationStatus.textContent = `正在唸第 ${displayIndex} / ${state.dictationWords.length} 個`;
+  updateDictationHighlights();
+  dictationStatus.textContent = `正在唸第 ${displayIndex} / ${state.dictationWords.length} 個：${item.word}`;
   setDictationButtons();
 
-  speakForDictation(word, () => {
+  speakForDictation(item.word, () => {
     if (!state.dictationRunning) return;
+    markDictationSpoken(item);
     if (state.dictationPlayMode === "auto") {
       state.dictationTimer = window.setTimeout(speakCurrentDictationWord, getDictationDelayMs());
       return;
@@ -264,15 +372,19 @@ function startDictation() {
 
   const sequence = dictationSequenceSelect.value;
   state.dictationPlayMode = dictationPlayModeSelect.value;
-  state.dictationWords = sequence === "random" ? shuffle(state.lesson.words) : [...state.lesson.words];
+  state.dictationWords = state.lesson.words.map((word, index) => ({ word, index }));
+  if (sequence === "random") state.dictationWords = shuffle(state.dictationWords);
   state.dictationIndex = 0;
+  state.dictationRunning = true;
+  resetDictationHighlights();
   state.dictationRunning = true;
   setDictationButtons();
   speakCurrentDictationWord();
 }
-
 function nextDictationWord() {
-  if (!state.dictationRunning || state.dictationPlayMode !== "manual") return;
+  if (!state.dictationRunning) return;
+  state.dictationPlayMode = "manual";
+  dictationPlayModeSelect.value = "manual";
   speakCurrentDictationWord();
 }
 
@@ -330,6 +442,8 @@ function renderWordList() {
     const button = document.createElement("button");
     button.className = "word-button";
     button.type = "button";
+    button.dataset.wordIndex = String(index);
+    applyDictationHighlight(button, index);
     button.innerHTML = `<strong>${word}</strong><span>${index + 1}</span>`;
     button.addEventListener("click", () => speak(word));
     wordList.append(button);
@@ -342,6 +456,8 @@ function renderDictationList() {
     const item = document.createElement("button");
     item.className = "dictation-word";
     item.type = "button";
+    item.dataset.wordIndex = String(index);
+    applyDictationHighlight(item, index);
     item.textContent = `${index + 1}. ${word}`;
     item.addEventListener("click", () => speak(word));
     dictationList.append(item);
@@ -403,6 +519,50 @@ function renderImages() {
   });
 }
 
+function renderCurrentLessonForm() {
+  if (!state.lesson || !lessonTitleInput || !lessonGradeInput) return;
+  lessonTitleInput.value = state.lesson.title || "";
+  lessonGradeInput.value = state.lesson.grade || "";
+  if (lessonImagesInput) lessonImagesInput.value = "";
+  if (deleteLessonBtn) deleteLessonBtn.disabled = state.lessons.length <= 1;
+}
+
+async function saveCurrentLesson(event) {
+  event.preventDefault();
+  const title = lessonTitleInput.value.trim();
+  const grade = lessonGradeInput.value.trim() || "2年級";
+  if (!title) {
+    lessonStatus.textContent = "請輸入課別名稱。";
+    return;
+  }
+
+  state.lesson.title = title;
+  state.lesson.grade = grade;
+  const files = lessonImagesInput ? [...lessonImagesInput.files] : [];
+  if (files.length) state.lesson.images = await Promise.all(files.map(fileToDataUrl));
+
+  saveLessons();
+  renderLessonOptions();
+  lessonSelect.value = state.lesson.id;
+  renderLesson();
+  resetQuizView();
+  lessonStatus.textContent = "已儲存目前課別，新增、刪除、修改都已生效。";
+}
+
+function deleteCurrentLesson() {
+  if (state.lessons.length <= 1) {
+    lessonStatus.textContent = "至少要保留一課。";
+    return;
+  }
+
+  const deletedIndex = state.lessons.findIndex((lesson) => lesson.id === state.lesson.id);
+  state.lessons.splice(deletedIndex, 1);
+  saveLessons();
+  renderLessonOptions();
+  const nextLesson = state.lessons[Math.max(0, deletedIndex - 1)] || state.lessons[0];
+  selectLesson(nextLesson.id);
+  lessonStatus.textContent = "已刪除課別。";
+}
 function renderLesson() {
   lessonMeta.textContent = `${state.lesson.subject} / ${state.lesson.grade}`;
   lessonTitle.textContent = state.lesson.title;
@@ -410,6 +570,7 @@ function renderLesson() {
   renderDictationList();
   renderManageList();
   renderImages();
+  renderCurrentLessonForm();
 }
 
 function refreshAfterWordsChanged() {
@@ -658,11 +819,9 @@ function selectLesson(id) {
   resetQuizView();
 }
 
-state.lessons = loadLessons();
-saveLessons();
-renderLessonOptions();
-
 lessonSelect.addEventListener("change", () => selectLesson(lessonSelect.value));
+currentLessonForm.addEventListener("submit", saveCurrentLesson);
+deleteLessonBtn.addEventListener("click", deleteCurrentLesson);
 wordForm.addEventListener("submit", saveWord);
 cancelEditBtn.addEventListener("click", cancelEdit);
 resetWordsBtn.addEventListener("click", resetWords);
@@ -686,7 +845,14 @@ randomModeBtn.addEventListener("click", () => setMode("random"));
 startBtn.addEventListener("click", startQuiz);
 nextBtn.addEventListener("click", nextQuestion);
 
-selectLesson(state.lessons[0].id);
+async function init() {
+  state.lessons = await loadLessons();
+  saveLessons();
+  renderLessonOptions();
+  selectLesson(state.lessons[0].id);
+}
+
+init();
 
 
 
