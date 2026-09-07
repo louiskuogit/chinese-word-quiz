@@ -64,3 +64,23 @@ OCR 只能先抓出候選詞，無法保證完全等同老師圈起來的詞。�
 資料保存：網站會使用瀏覽器 IndexedDB 保存你新增的課別、圖片、圈詞與排序，並保留固定 localStorage key 作備份與舊資料搬移。一般功能更新不會更換資料庫或備份 key，避免你每次更新網站後都要重新整理單詞。
 
 播放標示：聽寫朗讀時，正在唸的圈詞會變成黃色，這一輪已唸過的圈詞會變成綠色；整輪結束或按停止後會恢復正常。
+
+## 雲端同步
+
+網站已接 Firebase Authentication 與 Firestore。按「Google 登入同步」後，課別、圖片、圈詞與排序會同步到 `users/{uid}/study/lessons`，同一個 Google 帳號在不同裝置登入會讀取同一份資料。
+
+Firestore Rules 建議使用：
+
+```js
+rules_version = "2";
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{userId}/{document=**} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}
+```
+
+IndexedDB 與 localStorage 仍會保留為本機備份；如果未登入或雲端暫時失敗，已修改資料仍會先留在目前瀏覽器。

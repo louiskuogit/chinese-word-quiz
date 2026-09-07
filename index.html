@@ -12,10 +12,20 @@
       <p class="eyebrow">國小國語</p>
       <h1>圈詞朗讀與測驗</h1>
     </div>
-    <label class="lesson-picker">
-      <span>課別</span>
-      <select id="lessonSelect"></select>
-    </label>
+    <div class="header-tools">
+      <label class="lesson-picker">
+        <span>課別</span>
+        <select id="lessonSelect"></select>
+      </label>
+      <div class="auth-panel" id="authPanel">
+        <div>
+          <span id="authStatus">尚未登入</span>
+          <small id="syncStatus">本機資料</small>
+        </div>
+        <button id="signInBtn" type="button">Google 登入同步</button>
+        <button id="signOutBtn" type="button" hidden>登出</button>
+      </div>
+    </div>
   </header>
 
   <main class="layout">
@@ -163,9 +173,9 @@
     </section>
   </main>
 
-  <script src="lessons.js?v=20260908-1"></script>
+  <script src="lessons.js?v=20260908-2"></script>
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-  <script src="app.js?v=20260908-1"></script>
+  <script type="module" src="app.js?v=20260908-2"></script>
 </body>
 </html>
 

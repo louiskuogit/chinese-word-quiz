@@ -63,6 +63,44 @@ h2 {
   font-size: clamp(1.35rem, 2.5vw, 2rem);
 }
 
+
+.header-tools {
+  align-items: center;
+  display: flex;
+  gap: 14px;
+}
+
+.auth-panel {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+}
+
+.auth-panel div {
+  display: grid;
+  gap: 2px;
+  min-width: 120px;
+}
+
+.auth-panel span {
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.auth-panel small {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.auth-panel small.good {
+  color: var(--success);
+}
+
+.auth-panel small.bad {
+  color: var(--danger);
+}
 .lesson-picker {
   align-items: center;
   display: flex;
@@ -297,9 +335,15 @@ button:disabled {
     grid-template-columns: 1fr;
   }
 
+  .header-tools,
+  .auth-panel,
   .lesson-picker {
-    align-items: start;
+    align-items: stretch;
     flex-direction: column;
+  }
+
+  .auth-panel div {
+    min-width: 0;
   }
 }
 

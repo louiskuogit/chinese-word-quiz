@@ -1,8 +1,24 @@
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js";
+import { getAuth, GoogleAuthProvider, onAuthStateChanged, signInWithPopup, signOut } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-auth.js";
+import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js";
 const STORAGE_KEY = "chinese-word-quiz-lessons-v3";
 const LEGACY_STORAGE_KEYS = ["chinese-word-quiz-lessons-v2", "chinese-word-quiz-lessons-v1"];
 const DB_NAME = "chinese-word-quiz-db";
 const DB_VERSION = 1;
 const LESSON_STORE = "lessons";
+const firebaseConfig = {
+  apiKey: "AIzaSyAztDiOzjisW2fwcDxsoGEyYIBY-Krl2aw",
+  authDomain: "elementary-study-quiz.firebaseapp.com",
+  projectId: "elementary-study-quiz",
+  storageBucket: "elementary-study-quiz.firebasestorage.app",
+  messagingSenderId: "239157703959",
+  appId: "1:239157703959:web:4478067964d3c000db3352",
+  measurementId: "G-V7F92M9XN7"
+};
+const firebaseApp = initializeApp(firebaseConfig);
+const auth = getAuth(firebaseApp);
+const provider = new GoogleAuthProvider();
+const firestore = getFirestore(firebaseApp);
 
 const state = {
   lessons: [],
@@ -20,9 +36,16 @@ const state = {
   dictationCurrentItem: null,
   dictationActiveIndex: -1,
   dictationPlayedIndexes: new Set(),
-  recognizing: false
+  recognizing: false,
+  user: null,
+  syncTimer: null,
+  loadingCloud: false
 };
 
+const authStatus = document.querySelector("#authStatus");
+const syncStatus = document.querySelector("#syncStatus");
+const signInBtn = document.querySelector("#signInBtn");
+const signOutBtn = document.querySelector("#signOutBtn");
 const lessonSelect = document.querySelector("#lessonSelect");
 const lessonMeta = document.querySelector("#lessonMeta");
 const lessonTitle = document.querySelector("#lessonTitle");
@@ -216,6 +239,107 @@ async function loadLessons() {
 
 function saveLessons() {
   writeDatabaseLessons(state.lessons);
+  scheduleCloudSave();
+}
+function getCloudLessonsRef() {
+  if (!state.user) return null;
+  return doc(firestore, "users", state.user.uid, "study", "lessons");
+}
+
+function setSyncStatus(message, tone = "") {
+  syncStatus.textContent = message;
+  syncStatus.className = tone;
+}
+
+function renderAuthState() {
+  const signedIn = Boolean(state.user);
+  authStatus.textContent = signedIn ? state.user.email : "尚未登入";
+  signInBtn.hidden = signedIn;
+  signOutBtn.hidden = !signedIn;
+  setSyncStatus(signedIn ? "雲端同步已啟用" : "本機資料", signedIn ? "good" : "");
+}
+
+async function readCloudLessons() {
+  const ref = getCloudLessonsRef();
+  if (!ref) return [];
+  const snapshot = await getDoc(ref);
+  if (!snapshot.exists()) return [];
+  const data = snapshot.data();
+  return Array.isArray(data.lessons) ? data.lessons : [];
+}
+
+async function writeCloudLessons(force = false) {
+  if (!state.user || (state.loadingCloud && !force)) return;
+  const ref = getCloudLessonsRef();
+  if (!ref) return;
+
+  try {
+    setSyncStatus("同步中...");
+    await setDoc(ref, {
+      lessons: state.lessons.map(cloneLesson),
+      schemaVersion: 1,
+      updatedAt: serverTimestamp()
+    });
+    setSyncStatus("已同步到雲端", "good");
+  } catch (error) {
+    setSyncStatus("雲端同步失敗，已保留本機備份", "bad");
+    console.error(error);
+  }
+}
+
+function scheduleCloudSave() {
+  if (!state.user || state.loadingCloud) return;
+  if (state.syncTimer) window.clearTimeout(state.syncTimer);
+  setSyncStatus("等待同步...");
+  state.syncTimer = window.setTimeout(() => writeCloudLessons(), 500);
+}
+
+function renderLoadedLessons(preferredLessonId) {
+  renderLessonOptions();
+  const nextLesson = state.lessons.find((lesson) => lesson.id === preferredLessonId) || state.lessons[0];
+  if (nextLesson) selectLesson(nextLesson.id);
+}
+
+async function syncFromCloud() {
+  if (!state.user) return;
+  const preferredLessonId = state.lesson ? state.lesson.id : "";
+  state.loadingCloud = true;
+  setSyncStatus("讀取雲端資料...");
+
+  try {
+    const cloudLessons = await readCloudLessons();
+    const localLessons = state.lessons.length ? cloneLessons(state.lessons) : await loadLessons();
+    state.lessons = cloudLessons.length ? mergeLessonSources([cloudLessons, localLessons]) : localLessons;
+    await writeDatabaseLessons(state.lessons);
+    renderLoadedLessons(preferredLessonId);
+    state.loadingCloud = false;
+    if (cloudLessons.length) {
+      setSyncStatus("已載入雲端資料", "good");
+    } else {
+      await writeCloudLessons(true);
+    }
+  } catch (error) {
+    state.loadingCloud = false;
+    setSyncStatus("雲端讀取失敗，先使用本機資料", "bad");
+    console.error(error);
+  }
+}
+
+async function signInWithGoogle() {
+  try {
+    signInBtn.disabled = true;
+    setSyncStatus("登入中...");
+    await signInWithPopup(auth, provider);
+  } catch (error) {
+    setSyncStatus("登入失敗，請確認 Firebase 已啟用 Google 登入", "bad");
+    console.error(error);
+  } finally {
+    signInBtn.disabled = false;
+  }
+}
+
+async function signOutCloud() {
+  await signOut(auth);
 }
 function speak(text) {
   if (!("speechSynthesis" in window)) {
@@ -819,6 +943,14 @@ function selectLesson(id) {
   resetQuizView();
 }
 
+signInBtn.addEventListener("click", signInWithGoogle);
+signOutBtn.addEventListener("click", signOutCloud);
+onAuthStateChanged(auth, async (user) => {
+  state.user = user;
+  renderAuthState();
+  if (user) await syncFromCloud();
+});
+
 lessonSelect.addEventListener("change", () => selectLesson(lessonSelect.value));
 currentLessonForm.addEventListener("submit", saveCurrentLesson);
 deleteLessonBtn.addEventListener("click", deleteCurrentLesson);
@@ -846,10 +978,10 @@ startBtn.addEventListener("click", startQuiz);
 nextBtn.addEventListener("click", nextQuestion);
 
 async function init() {
+  renderAuthState();
   state.lessons = await loadLessons();
   saveLessons();
-  renderLessonOptions();
-  selectLesson(state.lessons[0].id);
+  renderLoadedLessons(state.lessons[0] ? state.lessons[0].id : "");
 }
 
 init();
