@@ -128,6 +128,17 @@ button {
   padding: 9px 16px;
 }
 
+ruby {
+  line-height: 1.75;
+  ruby-position: over;
+}
+
+rt {
+  color: #7a4c00;
+  font-size: 0.52em;
+  font-weight: 800;
+  letter-spacing: 0;
+}
 button:disabled {
   cursor: not-allowed;
   opacity: 0.45;
@@ -186,10 +197,22 @@ button:disabled {
   display: flex;
   font-size: 1.35rem;
   justify-content: space-between;
-  min-height: 56px;
+  min-height: 70px;
   padding: 8px 12px;
 }
 
+
+.word-button strong {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1px;
+}
+
+.word-index {
+  color: var(--brand);
+  font-weight: 800;
+}
 .word-button span:last-child {
   color: var(--brand);
   font-size: 1rem;
@@ -272,7 +295,13 @@ button:disabled {
 
 .choice {
   font-size: 1.25rem;
-  min-height: 58px;
+  min-height: 72px;
+  overflow-wrap: anywhere;
+}
+
+.choice ruby,
+.question-word ruby {
+  margin-inline: 1px;
 }
 
 .choice.correct {
@@ -465,10 +494,17 @@ button:disabled {
 .dictation-word {
   background: white;
   font-size: 1.05rem;
-  min-height: 44px;
+  min-height: 60px;
   overflow-wrap: anywhere;
-  padding: 7px 10px;
+  padding: 8px 10px;
   text-align: left;
+}
+
+.dictation-word {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px;
 }
 
 .dictation-settings {

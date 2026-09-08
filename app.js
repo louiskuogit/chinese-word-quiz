@@ -19,6 +19,59 @@ const firebaseApp = initializeApp(firebaseConfig);
 const auth = getAuth(firebaseApp);
 const provider = new GoogleAuthProvider();
 const firestore = getFirestore(firebaseApp);
+const ZHUYIN_MAP = {
+  "學": "ㄒㄩㄝˊ",
+  "年": "ㄋㄧㄢˊ",
+  "新": "ㄒㄧㄣ",
+  "希": "ㄒㄧ",
+  "望": "ㄨㄤˋ",
+  "坐": "ㄗㄨㄛˋ",
+  "在": "ㄗㄞˋ",
+  "位": "ㄨㄟˋ",
+  "子": "ㄗ˙",
+  "課": "ㄎㄜˋ",
+  "本": "ㄅㄣˇ",
+  "淡": "ㄉㄢˋ",
+  "的": "ㄉㄜ˙",
+  "書": "ㄕㄨ",
+  "香": "ㄒㄧㄤ",
+  "老": "ㄌㄠˇ",
+  "師": "ㄕ",
+  "以": "ㄧˇ",
+  "前": "ㄑㄧㄢˊ",
+  "大": "ㄉㄚˋ",
+  "聲": "ㄕㄥ",
+  "成": "ㄔㄥˊ",
+  "為": "ㄨㄟˊ",
+  "故": "ㄍㄨˋ",
+  "事": "ㄕˋ",
+  "用": "ㄩㄥˋ",
+  "力": "ㄌㄧˋ",
+  "只": "ㄓˇ",
+  "喜": "ㄒㄧˇ",
+  "歡": "ㄏㄨㄢ",
+  "現": "ㄒㄧㄢˋ",
+  "還": "ㄏㄞˊ",
+  "高": "ㄍㄠ",
+  "比": "ㄅㄧˇ",
+  "我": "ㄨㄛˇ",
+  "矮": "ㄞˇ",
+  "較": "ㄐㄧㄠˋ",
+  "第": "ㄉㄧˋ",
+  "國": "ㄍㄨㄛˊ",
+  "文": "ㄨㄣˊ",
+  "級": "ㄐㄧˊ",
+  "一": "ㄧ",
+  "二": "ㄦˋ",
+  "三": "ㄙㄢ",
+  "四": "ㄙˋ",
+  "五": "ㄨˇ",
+  "六": "ㄌㄧㄡˋ",
+  "七": "ㄑㄧ",
+  "八": "ㄅㄚ",
+  "九": "ㄐㄧㄡˇ",
+  "十": "ㄕˊ"
+};
 
 const state = {
   lessons: [],
@@ -93,6 +146,29 @@ const nextDictationBtn = document.querySelector("#nextDictationBtn");
 const stopDictationBtn = document.querySelector("#stopDictationBtn");
 const dictationStatus = document.querySelector("#dictationStatus");
 
+function createRubyText(text) {
+  const fragment = document.createDocumentFragment();
+  Array.from(String(text || "")).forEach((char) => {
+    const zhuyin = ZHUYIN_MAP[char];
+    if (!zhuyin) {
+      fragment.append(document.createTextNode(char));
+      return;
+    }
+
+    const ruby = document.createElement("ruby");
+    ruby.append(document.createTextNode(char));
+    const rt = document.createElement("rt");
+    rt.textContent = zhuyin;
+    ruby.append(rt);
+    fragment.append(ruby);
+  });
+  return fragment;
+}
+
+function renderRubyText(element, text) {
+  element.textContent = "";
+  element.append(createRubyText(text));
+}
 function cloneLesson(lesson) {
   return {
     id: lesson.id,
@@ -575,7 +651,11 @@ function renderWordList() {
     button.type = "button";
     button.dataset.wordIndex = String(index);
     applyDictationHighlight(button, index);
-    button.innerHTML = `<strong>${word}</strong><span>${index + 1}</span>`;
+    const wordLabel = document.createElement("strong");
+    wordLabel.append(createRubyText(word));
+    const indexLabel = document.createElement("span");
+    indexLabel.textContent = String(index + 1);
+    button.append(wordLabel, indexLabel);
     button.addEventListener("click", () => speak(word));
     wordList.append(button);
   });
@@ -589,7 +669,10 @@ function renderDictationList() {
     item.type = "button";
     item.dataset.wordIndex = String(index);
     applyDictationHighlight(item, index);
-    item.textContent = `${index + 1}. ${word}`;
+    const indexLabel = document.createElement("span");
+    indexLabel.className = "word-index";
+    indexLabel.textContent = `${index + 1}. `;
+    item.append(indexLabel, createRubyText(word));
     item.addEventListener("click", () => speak(word));
     dictationList.append(item);
   });
@@ -602,7 +685,7 @@ function renderManageList() {
     item.className = "manage-item";
 
     const label = document.createElement("span");
-    label.textContent = `${index + 1}. ${word}`;
+    label.append(document.createTextNode(`${index + 1}. `), createRubyText(word));
 
     const controls = document.createElement("div");
     controls.className = "manage-controls";
@@ -696,7 +779,7 @@ function deleteCurrentLesson() {
 }
 function renderLesson() {
   lessonMeta.textContent = `${state.lesson.subject} / ${state.lesson.grade}`;
-  lessonTitle.textContent = state.lesson.title;
+  renderRubyText(lessonTitle, state.lesson.title);
   renderWordList();
   renderDictationList();
   renderManageList();
@@ -879,7 +962,8 @@ function renderQuestion() {
     const button = document.createElement("button");
     button.className = "choice";
     button.type = "button";
-    button.textContent = word;
+    button.dataset.word = word;
+    button.append(createRubyText(word));
     button.addEventListener("click", () => answerQuestion(button, word, answer));
     choices.append(button);
   });
@@ -896,13 +980,13 @@ function answerQuestion(button, selected, answer) {
 
   [...choices.children].forEach((choice) => {
     choice.disabled = true;
-    if (choice.textContent === answer) choice.classList.add("correct");
+    if (choice.dataset.word === answer) choice.classList.add("correct");
   });
 
   if (!isCorrect) button.classList.add("wrong");
   feedback.textContent = isCorrect ? "答對了" : `答案是「${answer}」`;
   feedback.className = `feedback ${isCorrect ? "good" : "bad"}`;
-  questionWord.textContent = answer;
+  renderRubyText(questionWord, answer);
   correctCount.textContent = state.correct;
   nextBtn.disabled = false;
 }
