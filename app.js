@@ -165,9 +165,16 @@ function createRubyText(text) {
   return fragment;
 }
 
+function createRubyWord(text) {
+  const wrapper = document.createElement("span");
+  wrapper.className = "zhuyin-word";
+  wrapper.append(createRubyText(text));
+  return wrapper;
+}
+
 function renderRubyText(element, text) {
   element.textContent = "";
-  element.append(createRubyText(text));
+  element.append(createRubyWord(text));
 }
 function cloneLesson(lesson) {
   return {
@@ -652,7 +659,7 @@ function renderWordList() {
     button.dataset.wordIndex = String(index);
     applyDictationHighlight(button, index);
     const wordLabel = document.createElement("strong");
-    wordLabel.append(createRubyText(word));
+    wordLabel.append(createRubyWord(word));
     const indexLabel = document.createElement("span");
     indexLabel.textContent = String(index + 1);
     button.append(wordLabel, indexLabel);
@@ -672,7 +679,7 @@ function renderDictationList() {
     const indexLabel = document.createElement("span");
     indexLabel.className = "word-index";
     indexLabel.textContent = `${index + 1}. `;
-    item.append(indexLabel, createRubyText(word));
+    item.append(indexLabel, createRubyWord(word));
     item.addEventListener("click", () => speak(word));
     dictationList.append(item);
   });
@@ -685,7 +692,7 @@ function renderManageList() {
     item.className = "manage-item";
 
     const label = document.createElement("span");
-    label.append(document.createTextNode(`${index + 1}. `), createRubyText(word));
+    label.append(document.createTextNode(`${index + 1}. `), createRubyWord(word));
 
     const controls = document.createElement("div");
     controls.className = "manage-controls";
@@ -963,7 +970,7 @@ function renderQuestion() {
     button.className = "choice";
     button.type = "button";
     button.dataset.word = word;
-    button.append(createRubyText(word));
+    button.append(createRubyWord(word));
     button.addEventListener("click", () => answerQuestion(button, word, answer));
     choices.append(button);
   });

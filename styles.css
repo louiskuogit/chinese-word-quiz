@@ -135,9 +135,19 @@ ruby {
 
 rt {
   color: #7a4c00;
-  font-size: 0.52em;
+  font-size: 0.42em;
   font-weight: 800;
   letter-spacing: 0;
+}
+
+.zhuyin-word {
+  display: inline-block;
+  white-space: nowrap;
+}
+
+.zhuyin-word ruby {
+  display: inline-block;
+  text-align: center;
 }
 button:disabled {
   cursor: not-allowed;
@@ -187,7 +197,7 @@ button:disabled {
 .word-list {
   display: grid;
   gap: 10px;
-  grid-template-columns: repeat(auto-fill, minmax(118px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
   margin-bottom: 24px;
 }
 
@@ -203,10 +213,10 @@ button:disabled {
 
 
 .word-button strong {
-  align-items: center;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .word-index {
@@ -487,7 +497,7 @@ button:disabled {
 .dictation-list {
   display: grid;
   gap: 8px;
-  grid-template-columns: repeat(auto-fill, minmax(92px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
   margin: 14px 0;
 }
 
@@ -503,8 +513,7 @@ button:disabled {
 .dictation-word {
   align-items: center;
   display: flex;
-  flex-wrap: wrap;
-  gap: 2px;
+  gap: 4px;
 }
 
 .dictation-settings {
