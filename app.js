@@ -403,9 +403,15 @@ function resetDictationHighlights() {
 }
 
 function markDictationSpoken(item) {
+  if (!item) return;
   state.dictationPlayedIndexes.add(item.index);
   state.dictationActiveIndex = -1;
   updateDictationHighlights();
+}
+
+function markCurrentDictationAsPlayed() {
+  if (!state.dictationCurrentItem) return;
+  markDictationSpoken(state.dictationCurrentItem);
 }
 
 function repeatCurrentDictationWord() {
@@ -452,6 +458,7 @@ function stopDictation() {
 
 function speakCurrentDictationWord() {
   if (!state.dictationRunning) return;
+  markCurrentDictationAsPlayed();
   if (state.dictationIndex >= state.dictationWords.length) {
     finishDictation();
     return;
