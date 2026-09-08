@@ -202,7 +202,7 @@ function pickSavedLesson(lesson, savedSources) {
     grade: best.grade || lesson.grade,
     subject: best.subject || lesson.subject,
     images: Array.isArray(best.images) && best.images.length ? [...best.images] : lesson.images,
-    words: normalizeWords(best.words, lesson.words),
+    words: normalizeWords(best.words),
     custom: Boolean(best.custom || lesson.custom)
   };
 }
