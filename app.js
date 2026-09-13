@@ -336,10 +336,7 @@ function pickSavedLesson(lesson, savedSources) {
 
   if (candidates.length === 0) return lesson;
 
-  const best = candidates.reduce((currentBest, candidate) => {
-    if (!currentBest) return candidate;
-    return candidate.words.length > currentBest.words.length ? candidate : currentBest;
-  }, null);
+  const best = candidates[0];
 
   return {
     ...lesson,
@@ -423,6 +420,7 @@ async function writeCloudLessons(force = false) {
     await setDoc(ref, {
       lessons: state.lessons.map(cloneLesson),
       schemaVersion: 1,
+      updatedAtMs: Date.now(),
       updatedAt: serverTimestamp()
     });
     setSyncStatus("已同步到雲端", "good");
@@ -477,7 +475,7 @@ async function signInWithGoogle() {
     setSyncStatus("登入中...");
     await signInWithPopup(auth, provider);
   } catch (error) {
-    setSyncStatus("登入失敗，請確認 Firebase 已啟用 Google 登入", "bad");
+    setSyncStatus("登入失敗。手機請用 Safari/Chrome 開啟，不要在 LINE 內建瀏覽器登入", "bad");
     console.error(error);
   } finally {
     signInBtn.disabled = false;

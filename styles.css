@@ -101,6 +101,10 @@ h2 {
 .auth-panel small.bad {
   color: var(--danger);
 }
+
+.auth-hint {
+  display: none;
+}
 .lesson-picker {
   align-items: center;
   display: flex;
@@ -383,6 +387,12 @@ button:disabled {
 
   .auth-panel div {
     min-width: 0;
+  }
+
+  .auth-hint {
+    color: var(--muted);
+    display: block;
+    font-size: 0.82rem;
   }
 }
 
