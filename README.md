@@ -88,3 +88,5 @@ service cloud.firestore {
 IndexedDB 與 localStorage 仍會保留為本機備份；如果未登入或雲端暫時失敗，已修改資料仍會先留在目前瀏覽器。
 
 同步注意：跨瀏覽器同步以雲端資料為優先，避免本機舊資料把已刪除或已修改的雲端資料補回來。手機若從 LINE 內建瀏覽器開啟，Google 登入可能因 sessionStorage 受限失敗，請用 Safari 或 Chrome 開啟網站登入。
+
+手動同步：登入後可按「上傳本機到雲端」，用目前畫面資料覆蓋 Firestore；也可按「重新讀取雲端」把雲端資料載回目前瀏覽器。

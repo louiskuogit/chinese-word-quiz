@@ -160,6 +160,8 @@ const state = {
 const authStatus = document.querySelector("#authStatus");
 const syncStatus = document.querySelector("#syncStatus");
 const signInBtn = document.querySelector("#signInBtn");
+const uploadCloudBtn = document.querySelector("#uploadCloudBtn");
+const downloadCloudBtn = document.querySelector("#downloadCloudBtn");
 const signOutBtn = document.querySelector("#signOutBtn");
 const lessonSelect = document.querySelector("#lessonSelect");
 const lessonMeta = document.querySelector("#lessonMeta");
@@ -397,6 +399,8 @@ function renderAuthState() {
   const signedIn = Boolean(state.user);
   authStatus.textContent = signedIn ? state.user.email : "尚未登入";
   signInBtn.hidden = signedIn;
+  uploadCloudBtn.hidden = !signedIn;
+  downloadCloudBtn.hidden = !signedIn;
   signOutBtn.hidden = !signedIn;
   setSyncStatus(signedIn ? "雲端同步已啟用" : "本機資料", signedIn ? "good" : "");
 }
@@ -457,8 +461,7 @@ async function syncFromCloud() {
     renderLoadedLessons(preferredLessonId);
     state.loadingCloud = false;
     if (cloudLessons.length) {
-      await writeCloudLessons(true);
-      setSyncStatus("已載入並更新雲端資料", "good");
+      setSyncStatus("已載入雲端資料", "good");
     } else {
       await writeCloudLessons(true);
     }
@@ -467,6 +470,24 @@ async function syncFromCloud() {
     setSyncStatus("雲端讀取失敗，先使用本機資料", "bad");
     console.error(error);
   }
+}
+
+async function uploadLocalToCloud() {
+  if (!state.user) {
+    setSyncStatus("請先登入 Google", "bad");
+    return;
+  }
+
+  await writeCloudLessons(true);
+}
+
+async function downloadCloudToLocal() {
+  if (!state.user) {
+    setSyncStatus("請先登入 Google", "bad");
+    return;
+  }
+
+  await syncFromCloud();
 }
 
 async function signInWithGoogle() {
@@ -1103,6 +1124,8 @@ function selectLesson(id) {
 }
 
 signInBtn.addEventListener("click", signInWithGoogle);
+uploadCloudBtn.addEventListener("click", uploadLocalToCloud);
+downloadCloudBtn.addEventListener("click", downloadCloudToLocal);
 signOutBtn.addEventListener("click", signOutCloud);
 onAuthStateChanged(auth, async (user) => {
   state.user = user;
