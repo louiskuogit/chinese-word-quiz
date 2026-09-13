@@ -438,6 +438,19 @@ button:disabled {
   margin-top: 14px;
 }
 
+.manage-item[draggable="true"] {
+  cursor: grab;
+}
+
+.manage-item.is-dragging {
+  opacity: 0.45;
+}
+
+.manage-item.is-drop-target {
+  border-color: var(--brand);
+  box-shadow: 0 0 0 3px rgba(47, 111, 115, 0.16);
+}
+
 .manage-item {
   align-items: center;
   background: white;

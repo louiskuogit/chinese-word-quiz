@@ -427,7 +427,7 @@ async function writeCloudLessons(force = false) {
       updatedAtMs: Date.now(),
       updatedAt: serverTimestamp()
     });
-    setSyncStatus("已同步到雲端", "good");
+    setSyncStatus(force ? "已手動上傳到雲端" : "已自動同步到雲端", "good");
   } catch (error) {
     setSyncStatus("雲端同步失敗，已保留本機備份", "bad");
     console.error(error);
@@ -772,6 +772,13 @@ function renderManageList() {
   state.lesson.words.forEach((word, index) => {
     const item = document.createElement("div");
     item.className = "manage-item";
+    item.draggable = true;
+    item.dataset.index = String(index);
+    item.addEventListener("dragstart", handleManageDragStart);
+    item.addEventListener("dragover", handleManageDragOver);
+    item.addEventListener("dragleave", handleManageDragLeave);
+    item.addEventListener("drop", handleManageDrop);
+    item.addEventListener("dragend", handleManageDragEnd);
 
     const label = document.createElement("span");
     label.append(document.createTextNode(`${index + 1}. `), createRubyWord(word));
@@ -922,14 +929,49 @@ function deleteWord(index) {
   refreshAfterWordsChanged();
 }
 
-function moveWord(index, direction) {
-  const targetIndex = index + direction;
-  if (targetIndex < 0 || targetIndex >= state.lesson.words.length) return;
+function moveWordToIndex(fromIndex, toIndex) {
+  if (fromIndex === toIndex) return;
+  if (fromIndex < 0 || fromIndex >= state.lesson.words.length) return;
+  if (toIndex < 0 || toIndex >= state.lesson.words.length) return;
 
-  const [word] = state.lesson.words.splice(index, 1);
-  state.lesson.words.splice(targetIndex, 0, word);
+  const [word] = state.lesson.words.splice(fromIndex, 1);
+  state.lesson.words.splice(toIndex, 0, word);
   cancelEdit();
   refreshAfterWordsChanged();
+}
+
+function moveWord(index, direction) {
+  moveWordToIndex(index, index + direction);
+}
+
+function handleManageDragStart(event) {
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", event.currentTarget.dataset.index);
+  event.currentTarget.classList.add("is-dragging");
+}
+
+function handleManageDragOver(event) {
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "move";
+  event.currentTarget.classList.add("is-drop-target");
+}
+
+function handleManageDragLeave(event) {
+  event.currentTarget.classList.remove("is-drop-target");
+}
+
+function handleManageDrop(event) {
+  event.preventDefault();
+  const fromIndex = Number(event.dataTransfer.getData("text/plain"));
+  const toIndex = Number(event.currentTarget.dataset.index);
+  event.currentTarget.classList.remove("is-drop-target");
+  moveWordToIndex(fromIndex, toIndex);
+}
+
+function handleManageDragEnd() {
+  document.querySelectorAll(".manage-item.is-dragging, .manage-item.is-drop-target").forEach((item) => {
+    item.classList.remove("is-dragging", "is-drop-target");
+  });
 }
 
 function resetWords() {
